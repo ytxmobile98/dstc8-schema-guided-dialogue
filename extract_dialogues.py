@@ -1,6 +1,7 @@
+import glob
 import json
 import os
-from os.path import dirname, join, realpath
+from os.path import basename, dirname, join, realpath, relpath
 
 
 def extract_dialogue(item: dict) -> dict:
@@ -131,19 +132,38 @@ def process_turn(turn: dict) -> dict:
 
 def main():
     CURDIR = dirname(realpath(__file__))
-    data_file = join(CURDIR, 'train', 'dialogues_001.json')
-    output_file = join(CURDIR, 'extracted', 'train', 'dialogues_001.json')
 
-    with open(data_file, 'r') as f:
-        dialogues = json.load(f)
-
-    result = [
-        extract_dialogue(dialogue) for dialogue in dialogues
+    input_dirs = [
+        join(CURDIR, 'train'),
+        join(CURDIR, 'dev'),
+        join(CURDIR, 'test'),
     ]
+    output_dirs = list(map(
+        lambda d: join(CURDIR, 'extracted', relpath(d, CURDIR)),
+        input_dirs,
+    ))
 
-    os.makedirs(dirname(output_file), exist_ok=True)
-    with open(output_file, 'w') as f:
-        json.dump(result, f, indent=2, ensure_ascii=False)
+    def process_dialogue_file(input_file: str, output_file: str):
+        with open(input_file, 'r') as f:
+            dialogues = json.load(f)
+
+        result = [
+            extract_dialogue(dialogue) for dialogue in dialogues
+        ]
+
+        with open(output_file, 'w') as f:
+            json.dump(result, f, indent=2, ensure_ascii=False)
+
+    for input_dir, output_dir in zip(input_dirs, output_dirs):
+        os.makedirs(output_dir, exist_ok=True)
+
+        input_files = glob.glob(join(input_dir, 'dialogues_*.json'))
+        output_files = list(map(
+            lambda input_file: join(output_dir, basename(input_file)),
+            input_files,
+        ))
+        for input_file, output_file in zip(input_files, output_files):
+            process_dialogue_file(input_file, output_file)
 
 
 if __name__ == "__main__":
